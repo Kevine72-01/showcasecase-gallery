@@ -2,7 +2,7 @@ function ProductCard({ product, showAction, onEdit, onDelete }) {
   return (
     <article className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className="relative aspect-4/3 overflow-hidden">
-        <ing
+        <img
           src={product.image}
           alt={product.name}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"

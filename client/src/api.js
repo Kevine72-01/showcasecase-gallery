@@ -19,5 +19,5 @@ export const createProduct = (data) =>
   request("", { method: "POST", body: JSON.stringify(data) });
 
 export const updateProduct = (id, data) =>
-  request("/${id}", { method: "PUT", body: JSON.stringify(data) });
+  request(`/${id}`, { method: "PUT", body: JSON.stringify(data) });
 export const deleteProduct = (id) => request(`/${id}`, { method: "DELETE" });

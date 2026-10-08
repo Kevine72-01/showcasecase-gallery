@@ -6,7 +6,7 @@ if (!API_URL) {
   );
 }
 async function request(path, options = {}) {
-  const res = await fetch("${API_URL}/api/products${path}", {
+  const res = await fetch(`${API_URL}/api/products${path}`, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
@@ -20,4 +20,4 @@ export const createProduct = (data) =>
 
 export const updateProduct = (id, data) =>
   request("/${id}", { method: "PUT", body: JSON.stringify(data) });
-export const deleteProduct = (id) => request("/${id}", { method: "DELETE" });
+export const deleteProduct = (id) => request(`/${id}`, { method: "DELETE" });

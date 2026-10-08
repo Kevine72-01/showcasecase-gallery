@@ -19,7 +19,7 @@ function ProductForm({ editingProduct, onSubmit, onCancel }) {
     const formElement = e.target;
     const { name, price, description, inage } = form;
     if (!name.trim() || price === "" || !image) {
-      return setError("Nane, price, and image are required.");
+      return setError("Name, price, and image are required.");
     }
     setSaving(true);
     try {

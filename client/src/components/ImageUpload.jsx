@@ -1,4 +1,5 @@
 const MAX_SIZE = 1024 * 1024;
+
 function ImageUpload({ image, onChange, onError }) {
   const handleFile = (e) => {
     const file = e.target.files[0];
@@ -16,8 +17,8 @@ function ImageUpload({ image, onChange, onError }) {
   return (
     <label
       className="flex h-48 cursor-pointer items-center justify-center overflow-hidden rounded-xl
-        border-2 border-dashed border-slate-300 text-sm text-slate-400 transition
-        hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-600"
+border-2 border-dashed border-slate-300 text-sm text-slate-400 transition
+hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-600"
     >
       {image ? (
         <img src={image} alt="Preview" className="h-full w-full object-cover" />

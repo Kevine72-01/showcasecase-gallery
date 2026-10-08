@@ -74,7 +74,7 @@ function App() {
       )}
 
       <footer className="py-10 text-center text-sm text-slate-400">
-        Made by [Your Name] . [Section]
+        Made by [Kevine N. Silvestre] . [INF232]
       </footer>
     </div>
   );

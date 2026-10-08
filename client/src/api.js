@@ -10,7 +10,7 @@ async function request(path, options = {}) {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  if (!res.ok) throw new Error("Request failed: ${res.status}");
   return res.json();
 }
 export const getProducts = () => request("");
@@ -20,4 +20,5 @@ export const createProduct = (data) =>
 
 export const updateProduct = (id, data) =>
   request(`/${id}`, { method: "PUT", body: JSON.stringify(data) });
+
 export const deleteProduct = (id) => request(`/${id}`, { method: "DELETE" });

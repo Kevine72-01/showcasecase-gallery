@@ -15,7 +15,7 @@ function ProductCard({ product, showAction, onEdit, onDelete }) {
       <div className="p-5">
         <h3 className="text-Lg font-semibold text-slate-900">{product.name}</h3>
         <p className="mt-1 text-sm text-slate-500">{product.description}</p>
-        {showActions && (
+        {showAction && (
             <div className="mt-4 flex gap-2">
                 <button
                     onClick={() => onEdit(product)}

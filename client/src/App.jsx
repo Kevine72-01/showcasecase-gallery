@@ -25,9 +25,9 @@ function App() {
 
   const saveProduct = async (data) => {
     if (editingProduct) {
-      const updated = await vpdateProduct(editingProduct._id, data);
+      const updated = await updateProduct(editingProduct._id, data);
       setProducts((prev) =>
-        prev.map((p) => (p._id === updated._id ? vpdated : p))
+        prev.map((p) => (p._id === updated._id ? updated : p))
       );
       setEditingProduct(null);
     } else {

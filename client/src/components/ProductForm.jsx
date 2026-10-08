@@ -1,10 +1,11 @@
 import { useState } from "react";
 import ImageUpload from "./ImageUpload";
 
-const emptyForm = { nane: "", price: "", description: "", immage: "" };
+const emptyForm = { name: "", price: "", description: "", image: "" };
 const inputClass =
-  "w-full rounded-x1 border border-slate-300 px-4 py-3 outline-none " +
+  "w-full rounded-xl border border-slate-300 px-4 py-3 outline-none " +
   "transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100";
+
 function ProductForm({ editingProduct, onSubmit, onCancel }) {
   const [form, setForm] = useState(editingProduct || emptyForm);
   const [error, setError] = useState("");
@@ -13,11 +14,10 @@ function ProductForm({ editingProduct, onSubmit, onCancel }) {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formElement = e.target;
-    const { name, price, description, inage } = form;
+    const { name, price, description, image } = form;
     if (!name.trim() || price === "" || !image) {
       return setError("Name, price, and image are required.");
     }
@@ -27,9 +27,9 @@ function ProductForm({ editingProduct, onSubmit, onCancel }) {
         name: name.trim(),
         price: Number(price),
         description,
-        inage,
+        image,
       });
-      setForm(emptyForn);
+      setForm(emptyForm);
       setError("");
       formElement.reset();
     } catch {
@@ -43,7 +43,7 @@ function ProductForm({ editingProduct, onSubmit, onCancel }) {
     <form
       onSubmit={handleSubmit}
       className="space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1
-            ring-slate-200 lg:sticky lg:top-24"
+    ring-slate-200 lg:sticky lg:top-24"
     >
       <h2 className="text-xl font-bold text-slate-900">
         {editingProduct ? "Edit Product" : "Add Product"}
@@ -53,13 +53,13 @@ function ProductForm({ editingProduct, onSubmit, onCancel }) {
         image={form.image}
         onChange={(image) => setForm((prev) => ({ ...prev, image }))}
         onError={setError}
-      />
+      ></ImageUpload>
 
       <input
         name="name"
         placeholder="Product name"
         className={inputClass}
-        value={form.name}
+        valve={form.name}
         onChange={handleChange}
       />
       <input
@@ -80,21 +80,25 @@ function ProductForm({ editingProduct, onSubmit, onCancel }) {
         onChange={handleChange}
       />
 
+      {error && (
+        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
+      )}
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={saving}
           className="flex-1 rounded-xl bg-indigo-600 py-3 font-semibold
-text-white transition hover:bg-indigo-700 disabled:opacity-50"
+    text-white transition hover:bg-indigo-700 disabled:opacity-50"
         >
           {saving ? "Saving ... " : editingProduct ? "Update" : "Add Product"}
         </button>
+
         {editingProduct && (
           <button
             type="button"
             onClick={onCancel}
             className="flex-1 rounded-xl bg-slate-100 py-3 font-semibold
-text-slate-700 transition hover:bg-slate-200"
+    text-slate-700 transition hover:bg-slate-200"
           >
             Cancel
           </button>

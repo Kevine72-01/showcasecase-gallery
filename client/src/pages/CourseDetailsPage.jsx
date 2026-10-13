@@ -30,6 +30,8 @@ export default function CourseDetailsPage() {
         if (!active) return;
 
         const loadedCourse = response.data.course || response.data;
+        console.log("Loaded course:", loadedCourse);
+        console.log("Loaded lessons:", loadedCourse.lessons);
         setCourse(loadedCourse);
 
         if (user?.role === "student") {
@@ -44,8 +46,7 @@ export default function CourseDetailsPage() {
               : data.enrollments || [];
 
             const currentEnrollment = enrollments.find((item) => {
-              const enrolledCourseId =
-                item.course?._id || item.course;
+              const enrolledCourseId = item.course?._id || item.course;
 
               return String(enrolledCourseId) === String(id);
             });
@@ -55,7 +56,7 @@ export default function CourseDetailsPage() {
             if (active) {
               console.error(
                 "Failed to load enrollment:",
-                err.response?.data || err.message
+                err.response?.data || err.message,
               );
               setEnrollment(null);
             }
@@ -64,8 +65,7 @@ export default function CourseDetailsPage() {
       } catch (err) {
         if (active) {
           setError(
-            err.response?.data?.message ||
-              "Unable to load this course."
+            err.response?.data?.message || "Unable to load this course.",
           );
         }
       } finally {
@@ -95,14 +95,13 @@ export default function CourseDetailsPage() {
           course: id,
           completedLessons: [],
           status: "active",
-        }
+        },
       );
 
       setMessage("You have successfully enrolled in this course.");
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Unable to enroll in this course."
+        err.response?.data?.message || "Unable to enroll in this course.",
       );
     } finally {
       setEnrolling(false);
@@ -121,7 +120,7 @@ export default function CourseDetailsPage() {
 
     try {
       const response = await api.patch(
-        `/enrollments/course/${course._id}/lessons/${lessonId}/complete`
+        `/enrollments/course/${course._id}/lessons/${lessonId}/complete`,
       );
 
       if (response.data.enrollment) {
@@ -132,18 +131,14 @@ export default function CourseDetailsPage() {
 
           const currentCompleted = current.completedLessons || [];
           const alreadyCompleted = currentCompleted.some(
-            (item) =>
-              String(item?._id || item) === String(lessonId)
+            (item) => String(item?._id || item) === String(lessonId),
           );
 
           if (alreadyCompleted) return current;
 
           return {
             ...current,
-            completedLessons: [
-              ...currentCompleted,
-              lessonId,
-            ],
+            completedLessons: [...currentCompleted, lessonId],
           };
         });
       }
@@ -152,12 +147,11 @@ export default function CourseDetailsPage() {
     } catch (err) {
       console.error(
         "Failed to complete lesson:",
-        err.response?.data || err.message
+        err.response?.data || err.message,
       );
 
       setError(
-        err.response?.data?.message ||
-          "Unable to update lesson progress."
+        err.response?.data?.message || "Unable to update lesson progress.",
       );
     } finally {
       setCompletingLessonId(null);
@@ -186,17 +180,16 @@ export default function CourseDetailsPage() {
 
   if (!course) return null;
 
-  const lessons = course.lessons || [];
+  const lessons = Array.isArray(course.lessons) ? course.lessons : [];
   const completedLessons = enrollment?.completedLessons || [];
 
   const isLessonCompleted = (lessonId) =>
     completedLessons.some(
-      (item) =>
-        String(item?._id || item) === String(lessonId)
+      (item) => String(item?._id || item) === String(lessonId),
     );
 
   const completedCount = lessons.filter((lesson) =>
-    isLessonCompleted(lesson._id)
+    isLessonCompleted(lesson._id),
   ).length;
 
   const progress =
@@ -206,22 +199,13 @@ export default function CourseDetailsPage() {
 
   return (
     <div className="container py-4">
-      <Link
-        to="/courses"
-        className="text-decoration-none text-success"
-      >
+      <Link to="/courses" className="text-decoration-none text-success">
         ← Back to Courses
       </Link>
 
-      {error && (
-        <div className="alert alert-danger mt-3">{error}</div>
-      )}
+      {error && <div className="alert alert-danger mt-3">{error}</div>}
 
-      {message && (
-        <div className="alert alert-success mt-3">
-          {message}
-        </div>
-      )}
+      {message && <div className="alert alert-success mt-3">{message}</div>}
 
       <div className="card border-0 shadow-sm mt-3 mb-4">
         {course.thumbnail && (
@@ -242,9 +226,7 @@ export default function CourseDetailsPage() {
               {course.category || "General"}
             </span>
 
-            <span className="badge text-bg-light border">
-              {course.code}
-            </span>
+            <span className="badge text-bg-light border">{course.code}</span>
           </div>
 
           <h1 className="fw-bold">{course.title}</h1>
@@ -253,9 +235,7 @@ export default function CourseDetailsPage() {
             Instructor: {course.instructor?.name || "Instructor"}
           </p>
 
-          <p style={{ whiteSpace: "pre-wrap" }}>
-            {course.description}
-          </p>
+          <p style={{ whiteSpace: "pre-wrap" }}>{course.description}</p>
 
           {isStudent && !enrollment && (
             <button
@@ -270,9 +250,7 @@ export default function CourseDetailsPage() {
           {isStudent && enrollment && (
             <div className="mt-4">
               <div className="d-flex justify-content-between mb-2">
-                <span className="fw-semibold">
-                  Your Learning Progress
-                </span>
+                <span className="fw-semibold">Your Learning Progress</span>
                 <span>{progress}%</span>
               </div>
 
@@ -299,9 +277,7 @@ export default function CourseDetailsPage() {
 
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="fw-bold mb-0">Course Lessons</h2>
-        <span className="text-secondary">
-          {lessons.length} lessons
-        </span>
+        <span className="text-secondary">{lessons.length} lessons</span>
       </div>
 
       {lessons.length === 0 ? (
@@ -334,9 +310,7 @@ export default function CourseDetailsPage() {
                       </div>
 
                       <div>
-                        <h5 className="fw-bold">
-                          {lesson.title}
-                        </h5>
+                        <h5 className="fw-bold">{lesson.title}</h5>
 
                         {lesson.content && (
                           <p
@@ -364,14 +338,10 @@ export default function CourseDetailsPage() {
                       <button
                         type="button"
                         className={`btn btn-sm ${
-                          completed
-                            ? "btn-outline-success"
-                            : "btn-success"
+                          completed ? "btn-outline-success" : "btn-success"
                         }`}
                         disabled={completed || completing}
-                        onClick={() =>
-                          handleCompleteLesson(lesson._id)
-                        }
+                        onClick={() => handleCompleteLesson(lesson._id)}
                       >
                         {completed
                           ? "Completed"
@@ -390,10 +360,7 @@ export default function CourseDetailsPage() {
 
       {user?.role === "instructor" && (
         <div className="mt-4">
-          <Link
-            to="/manage-courses"
-            className="btn btn-outline-success"
-          >
+          <Link to="/manage-courses" className="btn btn-outline-success">
             Manage Your Courses
           </Link>
         </div>

@@ -19,21 +19,31 @@ export default function CoursesPage() {
 
       try {
         const response = await api.get("/courses", {
-          params: { search, page, limit: 9 },
+          params: {
+            search: search.trim(),
+            page,
+            limit: 9,
+          },
         });
 
         if (!active) return;
 
         const data = response.data;
-        setCourses(data.courses || []);
-        setPages(data.pages || 1);
+        const courseList = Array.isArray(data.courses) ? data.courses : [];
+
+        setCourses(courseList);
+        setPages(
+          Math.max(1, Number(data.pagination?.totalPages ?? data.pages ?? 1)),
+        );
       } catch (err) {
-        if (active) {
-          setError(
-            err.response?.data?.message ||
-              "Unable to load courses. Check your backend connection."
-          );
-        }
+        if (!active) return;
+
+        setCourses([]);
+        setPages(1);
+        setError(
+          err.response?.data?.message ||
+            "Unable to load courses. Check your backend connection.",
+        );
       } finally {
         if (active) setLoading(false);
       }
@@ -62,7 +72,7 @@ export default function CoursesPage() {
         </div>
 
         <span className="badge text-bg-success fs-6">
-          {courses.length} courses
+          {courses.length} courses on this page
         </span>
       </div>
 
@@ -109,7 +119,10 @@ export default function CoursesPage() {
                     src={course.thumbnail}
                     className="card-img-top"
                     alt={course.title}
-                    style={{ height: 190, objectFit: "cover" }}
+                    style={{
+                      height: 190,
+                      objectFit: "cover",
+                    }}
                   />
                 ) : (
                   <div
@@ -125,17 +138,14 @@ export default function CoursesPage() {
                     <span className="badge text-bg-light border">
                       {course.category || "General"}
                     </span>
-                    <small className="text-secondary">
-                      {course.code}
-                    </small>
+
+                    <small className="text-secondary">{course.code}</small>
                   </div>
 
-                  <h5 className="card-title fw-bold">
-                    {course.title}
-                  </h5>
+                  <h5 className="card-title fw-bold">{course.title}</h5>
 
                   <p className="card-text text-secondary">
-                    {course.description?.length > 120
+                    {(course.description || "").length > 120
                       ? `${course.description.slice(0, 120)}...`
                       : course.description}
                   </p>

@@ -39,22 +39,7 @@ export default function ManageCoursesPage() {
   };
 
   useEffect(() => {
-    const loadCourses = async () => {
-      try {
-        setLoading(true);
-
-        const response = await fetch("http://localhost:5000/api/courses");
-        const data = await response.json();
-
-        setCourses(data);
-      } catch (error) {
-        console.error("Error fetching courses:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCourses();
+    fetchCourses();
   }, []);
 
   const handleChange = (event) => {
@@ -143,32 +128,37 @@ export default function ManageCoursesPage() {
 
     try {
       const payload = {
-        ...form,
         title: form.title.trim(),
         code: form.code.trim().toUpperCase(),
         description: form.description.trim(),
         category: form.category.trim(),
         thumbnail: form.thumbnail.trim(),
+        published: Boolean(form.published),
+        lessons: form.lessons.map((lesson) => ({
+          title: lesson.title.trim(),
+          content: lesson.content.trim(),
+          materialUrl: lesson.materialUrl.trim(),
+        })),
       };
 
       if (editingId) {
         await api.put(`/courses/${editingId}`, payload);
-        setMessage("Course updated successfully.");
       } else {
         await api.post("/courses", payload);
-        setMessage("Course created successfully.");
       }
 
-      resetForm();
-      setMessage(
-        editingId
-          ? "Course updated successfully."
-          : "Course created successfully.",
-      );
+      const successMessage = editingId
+        ? "Course updated successfully."
+        : "Course created successfully.";
 
+      resetForm();
       await fetchCourses();
+      setMessage(successMessage);
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to save the course.");
+      setError(
+        err.response?.data?.message ||
+          "Unable to save the course. Please try again.",
+      );
     } finally {
       setSaving(false);
     }

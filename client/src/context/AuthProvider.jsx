@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import api from "../api";
-import { AuthContext } from "./authContext";
+import { AuthContext } from "./AuthContext";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

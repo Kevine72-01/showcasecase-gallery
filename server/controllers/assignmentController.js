@@ -17,29 +17,17 @@ export const getAssignments = async (req, res) => {
     const assignments = await Assignment.find(filter)
       .populate("course", "title")
       .populate("instructor", "name email")
-      .sort({ dueDate: 1 });
+      .sort({ createdAt: -1 });
 
-    if (req.user.role === "student") {
-      const submissions = await Submission.find({
-        student: req.user._id,
-        assignment: { $in: assignments.map((a) => a._id) },
-      });
-
-      const submissionMap = new Map(
-        submissions.map((s) => [s.assignment.toString(), s])
-      );
-
-      return res.json(
-        assignments.map((a) => ({
-          ...a.toObject(),
-          submission: submissionMap.get(a._id.toString()) || null,
-        }))
-      );
-    }
-
-    res.json(assignments);
+    return res.status(200).json({
+      assignments,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Get assignments error:", error);
+
+    return res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
@@ -173,7 +161,6 @@ export const submitAssignment = async (req, res) => {
   }
 };
 
-// GET /api/assignments/:assignmentId/submissions
 export const getSubmissions = async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.assignmentId);
@@ -200,7 +187,6 @@ export const getSubmissions = async (req, res) => {
   }
 };
 
-// PATCH /api/assignments/submissions/:submissionId/grade
 export const gradeSubmission = async (req, res) => {
   try {
     const { grade, feedback } = req.body;

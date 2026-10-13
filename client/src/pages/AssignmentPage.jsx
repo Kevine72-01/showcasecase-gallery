@@ -34,20 +34,21 @@ export default function AssignmentsPage() {
   const isInstructor = user?.role === "instructor";
 
   const fetchAssignments = async () => {
-    setLoading(true);
-    setError("");
-
     try {
       const response = await api.get("/assignments");
 
-      setAssignments(response.data.assignments || []);
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to load assignments. Check your backend routes.",
+      setAssignments(
+        Array.isArray(response.data)
+          ? response.data
+          : response.data.assignments || [],
       );
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error(
+        "Failed to fetch assignments:",
+        error.response?.data || error.message,
+      );
+
+      setAssignments([]);
     }
   };
 

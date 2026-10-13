@@ -6,34 +6,24 @@ const submissionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Assignment",
       required: true,
+      index: true,
     },
 
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
-    answer: {
+    content: {
       type: String,
+      required: true,
       trim: true,
       maxlength: 20000,
-      default: "",
     },
 
-    attachmentUrl: {
-      type: String,
-      trim: true,
-      maxlength: 2048,
-      default: "",
-    },
-
-    submittedAt: {
-      type: Date,
-      default: Date.now,
-    },
-
-    score: {
+    grade: {
       type: Number,
       min: 0,
       default: null,
@@ -44,6 +34,11 @@ const submissionSchema = new mongoose.Schema(
       trim: true,
       maxlength: 5000,
       default: "",
+    },
+
+    submittedAt: {
+      type: Date,
+      default: Date.now,
     },
 
     gradedAt: {

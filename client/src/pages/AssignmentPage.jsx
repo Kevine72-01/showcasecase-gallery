@@ -1,21 +1,28 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "../api";
 import { useAuth } from "../context/useAuth";
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
 
+  // Main data
   const [assignments, setAssignments] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [mySubmissions, setMySubmissions] = useState({});
+  const [submissions, setSubmissions] = useState([]);
+
+  // Page state
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
+  // Instructor state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [submissions, setSubmissions] = useState([]);
 
+  // Assignment form
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
     instructions: "",
@@ -25,55 +32,64 @@ export default function AssignmentsPage() {
     published: false,
   });
 
-  const [answer, setAnswer] = useState("");
-  const [attachmentUrl, setAttachmentUrl] = useState("");
+  // Keep answers separate for each assignment.
+  const [answers, setAnswers] = useState({});
+  const [attachmentUrls, setAttachmentUrls] = useState({});
   const [grading, setGrading] = useState({});
-
-  const [saving, setSaving] = useState(false);
 
   const isInstructor = user?.role === "instructor";
 
-  const fetchAssignments = async () => {
-    setLoading(true);
-
+  // Fetch assignments and existing student submissions.
+  const fetchAssignments = useCallback(async () => {
     try {
-      const response = await api.get("/assignments", {
-        timeout: 15000,
-      });
+      const response = await api.get("/assignments");
 
-      const data = response.data;
+      const list = Array.isArray(response.data)
+        ? response.data
+        : response.data.assignments || [];
 
-      setAssignments(
-        Array.isArray(data)
-          ? data
-          : Array.isArray(data.assignments)
-            ? data.assignments
-            : [],
-      );
-    } catch (error) {
-      console.error(
-        "Assignment fetch failed:",
-        error.response?.data || error.message,
+      setAssignments(list);
+
+      if (!isInstructor) {
+        const submissionMap = {};
+
+        list.forEach((assignment) => {
+          if (assignment.submission) {
+            submissionMap[assignment._id] = assignment.submission;
+          }
+        });
+
+        setMySubmissions(submissionMap);
+      }
+
+      setError("");
+    } catch (err) {
+      console.error("Fetch assignments error:", err);
+      setError(
+        err.response?.data?.message ||
+          "Unable to load assignments. Please try again.",
       );
     } finally {
       setLoading(false);
     }
-  };
-  
-  const fetchCourses = async () => {
+  }, [isInstructor]);
+
+  // Fetch courses for the instructor's assignment form.
+  const fetchCourses = useCallback(async () => {
+    if (!isInstructor) return;
+
     try {
       const response = await api.get("/courses", {
-        params: {
-          mine: isInstructor ? true : undefined,
-          limit: 100,
-        },
+        params: { mine: true, limit: 100 },
       });
 
-      setCourses(response.data.courses || []);
-    } catch {
+      const data = response.data;
+      setCourses(Array.isArray(data) ? data : data.courses || []);
+    } catch (err) {
+      console.error("Fetch courses error:", err);
       setCourses([]);
     }
-  };
+  }, [isInstructor]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -81,8 +97,9 @@ export default function AssignmentsPage() {
     };
 
     loadData();
-  }, [isInstructor]);
+  }, [fetchAssignments, fetchCourses]);
 
+  // Handle assignment creation form fields.
   const handleAssignmentChange = (event) => {
     const { name, value, type, checked } = event.target;
 
@@ -92,6 +109,7 @@ export default function AssignmentsPage() {
     }));
   };
 
+  // Create a new assignment.
   const handleCreateAssignment = async (event) => {
     event.preventDefault();
     setError("");
@@ -106,6 +124,13 @@ export default function AssignmentsPage() {
       return;
     }
 
+    const maxScore = Number(assignmentForm.maxScore);
+
+    if (!Number.isFinite(maxScore) || maxScore < 1 || maxScore > 1000) {
+      setError("Maximum score must be between 1 and 1000.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -114,8 +139,8 @@ export default function AssignmentsPage() {
         instructions: assignmentForm.instructions.trim(),
         course: assignmentForm.course,
         dueDate: assignmentForm.dueDate || null,
-        maxScore: Number(assignmentForm.maxScore) || 100,
-        published: Boolean(assignmentForm.published),
+        maxScore,
+        published: assignmentForm.published,
       });
 
       setMessage("Assignment created successfully.");
@@ -140,27 +165,66 @@ export default function AssignmentsPage() {
     }
   };
 
-  const handleSubmitAssignment = async (event, assignmentId) => {
+  // Submit an answer for a specific assignment.
+  const handleSubmitAssignment = async (event, assignment) => {
     event.preventDefault();
     setError("");
     setMessage("");
 
-    if (!answer.trim()) {
+    const content = (answers[assignment._id] || "").trim();
+
+    if (!content) {
       setError("Please enter your answer before submitting.");
+      return;
+    }
+
+    if (!assignment.published) {
+      setError("This assignment has not been published yet.");
       return;
     }
 
     setSaving(true);
 
     try {
-      await api.post(`/assignments/${assignmentId}/submissions`, {
-        content: answer.trim(),
-      });
+      const response = await api.post(
+        `/assignments/${assignment._id}/submissions`,
+        {
+          content,
+        },
+      );
 
-      setMessage("Your assignment was submitted successfully.");
-      setAnswer("");
-      setAttachmentUrl("");
+      // Update the visible indicator immediately.
+      const savedSubmission = response.data.submission;
+
+      if (savedSubmission) {
+        setMySubmissions((current) => ({
+          ...current,
+          [assignment._id]: savedSubmission,
+        }));
+      } else {
+        // Still show submitted status if the API only returns a message.
+        setMySubmissions((current) => ({
+          ...current,
+          [assignment._id]: {
+            content,
+            submittedAt: new Date().toISOString(),
+            grade: null,
+            feedback: "",
+          },
+        }));
+      }
+
+      setAnswers((current) => ({
+        ...current,
+        [assignment._id]: "",
+      }));
+
+      setMessage(response.data.message || "Assignment submitted successfully.");
+
+      // Reload to retrieve the persisted submission from the backend.
+      await fetchAssignments();
     } catch (err) {
+      console.error("Submit assignment error:", err);
       setError(
         err.response?.data?.message || "Unable to submit your assignment.",
       );
@@ -169,25 +233,29 @@ export default function AssignmentsPage() {
     }
   };
 
+  // Load all submissions for an instructor-selected assignment.
   const handleViewSubmissions = async (assignment) => {
     setError("");
     setMessage("");
     setSelectedAssignment(assignment);
+    setSubmissions([]);
 
     try {
       const response = await api.get(
         `/assignments/${assignment._id}/submissions`,
       );
 
-      setSubmissions(response.data.submissions || []);
+      const data = response.data;
+      setSubmissions(Array.isArray(data) ? data : data.submissions || []);
     } catch (err) {
-      setSubmissions([]);
+      console.error("Fetch submissions error:", err);
       setError(
-        err.response?.data?.message || "Unable to load student submissions.",
+        err.response?.data?.message || "Unable to load assignment submissions.",
       );
     }
   };
 
+  // Handle instructor grade and feedback inputs.
   const handleGradeChange = (submissionId, field, value) => {
     setGrading((current) => ({
       ...current,
@@ -198,16 +266,19 @@ export default function AssignmentsPage() {
     }));
   };
 
+  // Save a grade and instructor feedback.
   const handleGradeSubmission = async (submission) => {
+    if (!selectedAssignment) return;
+
     const values = grading[submission._id] || {};
 
     const score =
-      values.score === undefined ? (submission.score ?? "") : values.score;
+      values.score !== undefined ? values.score : (submission.grade ?? "");
 
     const feedback =
-      values.feedback === undefined
-        ? submission.feedback || ""
-        : values.feedback;
+      values.feedback !== undefined
+        ? values.feedback
+        : submission.feedback || "";
 
     if (score === "" || !Number.isFinite(Number(score))) {
       setError("Please enter a valid numeric grade.");
@@ -231,6 +302,7 @@ export default function AssignmentsPage() {
 
       setMessage("Submission graded successfully.");
 
+      // Refresh the list after grading.
       await handleViewSubmissions(selectedAssignment);
     } catch (err) {
       setError(
@@ -241,8 +313,9 @@ export default function AssignmentsPage() {
     }
   };
 
+  // Search assignments by title or course.
   const filteredAssignments = assignments.filter((assignment) => {
-    const query = search.toLowerCase();
+    const query = search.trim().toLowerCase();
 
     return (
       assignment.title?.toLowerCase().includes(query) ||
@@ -261,18 +334,20 @@ export default function AssignmentsPage() {
 
   return (
     <div className="container py-4">
+      {/* Page heading */}
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
           <h1 className="fw-bold">Assignments</h1>
           <p className="text-secondary mb-0">
             {isInstructor
               ? "Create assignments and review student submissions."
-              : "View coursework and submit your assignments."}
+              : "View coursework, submit your work, and track your grades."}
           </p>
         </div>
 
         {isInstructor && (
           <button
+            type="button"
             className="btn btn-success"
             onClick={() => setShowCreateForm((value) => !value)}
           >
@@ -281,6 +356,7 @@ export default function AssignmentsPage() {
         )}
       </div>
 
+      {/* Feedback messages */}
       {error && (
         <div className="alert alert-danger" role="alert">
           {error}
@@ -288,11 +364,12 @@ export default function AssignmentsPage() {
       )}
 
       {message && (
-        <div className="alert alert-success" role="alert">
+        <div className="alert alert-success" role="status">
           {message}
         </div>
       )}
 
+      {/* Instructor: create assignment */}
       {isInstructor && showCreateForm && (
         <div className="card border-0 shadow-sm mb-4">
           <div className="card-header bg-success text-white py-3">
@@ -302,8 +379,11 @@ export default function AssignmentsPage() {
           <div className="card-body p-4">
             <form onSubmit={handleCreateAssignment}>
               <div className="mb-3">
-                <label className="form-label">Assignment Title</label>
+                <label className="form-label" htmlFor="assignmentTitle">
+                  Assignment Title
+                </label>
                 <input
+                  id="assignmentTitle"
                   className="form-control"
                   name="title"
                   value={assignmentForm.title}
@@ -314,8 +394,11 @@ export default function AssignmentsPage() {
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Course</label>
+                <label className="form-label" htmlFor="assignmentCourse">
+                  Course
+                </label>
                 <select
+                  id="assignmentCourse"
                   className="form-select"
                   name="course"
                   value={assignmentForm.course}
@@ -325,18 +408,30 @@ export default function AssignmentsPage() {
                   <option value="">Select a course</option>
                   {courses.map((course) => (
                     <option key={course._id} value={course._id}>
-                      {course.title} ({course.code})
+                      {course.title}
+                      {course.code ? ` (${course.code})` : ""}
                     </option>
                   ))}
                 </select>
+
+                {courses.length === 0 && (
+                  <small className="text-secondary">
+                    No courses found. Create or assign a course to your
+                    instructor account first.
+                  </small>
+                )}
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Instructions</label>
+                <label className="form-label" htmlFor="assignmentInstructions">
+                  Instructions
+                </label>
                 <textarea
+                  id="assignmentInstructions"
                   className="form-control"
                   name="instructions"
                   rows={4}
+                  maxLength={10000}
                   value={assignmentForm.instructions}
                   onChange={handleAssignmentChange}
                   required
@@ -345,25 +440,30 @@ export default function AssignmentsPage() {
 
               <div className="row g-3 mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">Due Date</label>
+                  <label className="form-label" htmlFor="assignmentDueDate">
+                    Due Date
+                  </label>
                   <input
+                    id="assignmentDueDate"
                     type="datetime-local"
                     className="form-control"
                     name="dueDate"
                     value={assignmentForm.dueDate}
                     onChange={handleAssignmentChange}
-                    required
                   />
                 </div>
 
                 <div className="col-md-6">
-                  <label className="form-label">Maximum Score</label>
+                  <label className="form-label" htmlFor="assignmentMaxScore">
+                    Maximum Score
+                  </label>
                   <input
+                    id="assignmentMaxScore"
                     type="number"
                     className="form-control"
                     name="maxScore"
                     min="1"
-                    max="100000"
+                    max="1000"
                     value={assignmentForm.maxScore}
                     onChange={handleAssignmentChange}
                     required
@@ -391,7 +491,7 @@ export default function AssignmentsPage() {
               <button
                 type="submit"
                 className="btn btn-success"
-                disabled={saving}
+                disabled={saving || courses.length === 0}
               >
                 {saving ? "Saving..." : "Create Assignment"}
               </button>
@@ -400,6 +500,7 @@ export default function AssignmentsPage() {
         </div>
       )}
 
+      {/* Search */}
       <div className="mb-4">
         <input
           type="search"
@@ -411,6 +512,7 @@ export default function AssignmentsPage() {
         />
       </div>
 
+      {/* Assignment cards */}
       {filteredAssignments.length === 0 ? (
         <div className="text-center py-5">
           <h4>No assignments found</h4>
@@ -420,101 +522,217 @@ export default function AssignmentsPage() {
         </div>
       ) : (
         <div className="row g-4">
-          {filteredAssignments.map((assignment) => (
-            <div className="col-12 col-lg-6" key={assignment._id}>
-              <div className="card h-100 border-0 shadow-sm">
-                <div className="card-body p-4">
-                  <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-                    <span className="badge text-bg-success">
-                      {assignment.course?.title || "Course"}
-                    </span>
+          {filteredAssignments.map((assignment) => {
+            const submission = mySubmissions[assignment._id];
+            const isSubmitted = Boolean(submission);
 
-                    <span className="badge text-bg-light border">
-                      {assignment.published ? "Published" : "Draft"}
-                    </span>
-                  </div>
+            return (
+              <div className="col-12 col-lg-6" key={assignment._id}>
+                <div className="card h-100 border-0 shadow-sm">
+                  <div className="card-body p-4">
+                    <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                      <span className="badge text-bg-success">
+                        {assignment.course?.title || "Course"}
+                      </span>
 
-                  <h5 className="fw-bold">{assignment.title}</h5>
+                      {isInstructor ? (
+                        <span
+                          className={`badge ${
+                            assignment.published
+                              ? "text-bg-success"
+                              : "text-bg-secondary"
+                          }`}
+                        >
+                          {assignment.published ? "Published" : "Draft"}
+                        </span>
+                      ) : (
+                        <span
+                          className={`badge ${
+                            isSubmitted
+                              ? "text-bg-success"
+                              : assignment.published
+                                ? "text-bg-warning"
+                                : "text-bg-secondary"
+                          }`}
+                        >
+                          {isSubmitted
+                            ? "Submitted"
+                            : assignment.published
+                              ? "Not submitted"
+                              : "Not published"}
+                        </span>
+                      )}
+                    </div>
 
-                  <p className="text-secondary">{assignment.instructions}</p>
+                    <h5 className="fw-bold">{assignment.title}</h5>
 
-                  <p className="small mb-2">
-                    <strong>Maximum score:</strong> {assignment.maxScore}
-                  </p>
+                    <p className="text-secondary">{assignment.instructions}</p>
 
-                  <p className="small text-secondary">
-                    <strong>Due:</strong>{" "}
-                    {assignment.dueDate
-                      ? new Date(assignment.dueDate).toLocaleString()
-                      : "No due date"}
-                  </p>
+                    <p className="small mb-2">
+                      <strong>Maximum score:</strong> {assignment.maxScore}
+                    </p>
 
-                  {isInstructor ? (
-                    <button
-                      className="btn btn-outline-success"
-                      onClick={() => handleViewSubmissions(assignment)}
-                    >
-                      View Submissions / Grade
-                    </button>
-                  ) : (
-                    <form
-                      onSubmit={(event) =>
-                        handleSubmitAssignment(event, assignment._id)
-                      }
-                    >
-                      <div className="mb-3">
-                        <label className="form-label">Your Answer</label>
-                        <textarea
-                          className="form-control"
-                          rows={3}
-                          value={answer}
-                          onChange={(event) => setAnswer(event.target.value)}
-                          placeholder="Write your answer..."
-                          required
-                        />
+                    <p className="small text-secondary">
+                      <strong>Due:</strong>{" "}
+                      {assignment.dueDate
+                        ? new Date(assignment.dueDate).toLocaleString()
+                        : "No due date"}
+                    </p>
+
+                    {/* Student: submission details and grade */}
+                    {!isInstructor && isSubmitted && (
+                      <div className="alert alert-success mt-3 mb-3">
+                        <div className="fw-bold mb-1">
+                          <span aria-hidden="true">✓ </span>
+                          Assignment Submitted
+                        </div>
+
+                        <div className="small">
+                          <strong>Submitted:</strong>{" "}
+                          {submission.submittedAt
+                            ? new Date(submission.submittedAt).toLocaleString()
+                            : "Submission recorded"}
+                        </div>
+
+                        {submission.content && (
+                          <div className="mt-2">
+                            <strong>Your answer:</strong>
+                            <div
+                              className="bg-white rounded border p-2 mt-1"
+                              style={{ whiteSpace: "pre-wrap" }}
+                            >
+                              {submission.content}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-2">
+                          <strong>Grade:</strong>{" "}
+                          {submission.grade !== null &&
+                          submission.grade !== undefined
+                            ? `${submission.grade} / ${assignment.maxScore}`
+                            : "Not graded yet"}
+                        </div>
+
+                        {submission.feedback && (
+                          <div className="mt-2">
+                            <strong>Instructor feedback:</strong>
+                            <p className="mb-0">{submission.feedback}</p>
+                          </div>
+                        )}
                       </div>
+                    )}
 
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Attachment URL (optional)
-                        </label>
-                        <input
-                          type="url"
-                          className="form-control"
-                          value={attachmentUrl}
-                          onChange={(event) =>
-                            setAttachmentUrl(event.target.value)
-                          }
-                          placeholder="https://example.com/my-work.pdf"
-                        />
-                      </div>
-
+                    {/* Instructor controls */}
+                    {isInstructor ? (
                       <button
-                        type="submit"
-                        className="btn btn-success"
-                        disabled={saving || !assignment.published}
+                        type="button"
+                        className="btn btn-outline-success"
+                        onClick={() => handleViewSubmissions(assignment)}
                       >
-                        {saving ? "Submitting..." : "Submit Assignment"}
+                        View Submissions / Grade
                       </button>
-                    </form>
-                  )}
+                    ) : (
+                      /* Student submission form */
+                      <form
+                        onSubmit={(event) =>
+                          handleSubmitAssignment(event, assignment)
+                        }
+                      >
+                        <div className="mb-3">
+                          <label
+                            className="form-label"
+                            htmlFor={`answer-${assignment._id}`}
+                          >
+                            {isSubmitted ? "Update Your Answer" : "Your Answer"}
+                          </label>
+
+                          <textarea
+                            id={`answer-${assignment._id}`}
+                            className="form-control"
+                            rows={3}
+                            value={answers[assignment._id] || ""}
+                            onChange={(event) =>
+                              setAnswers((current) => ({
+                                ...current,
+                                [assignment._id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Write your answer..."
+                            disabled={!assignment.published || saving}
+                            required
+                          />
+                        </div>
+
+                        <div className="mb-3">
+                          <label
+                            className="form-label"
+                            htmlFor={`attachment-${assignment._id}`}
+                          >
+                            Attachment URL (optional)
+                          </label>
+
+                          <input
+                            id={`attachment-${assignment._id}`}
+                            type="url"
+                            className="form-control"
+                            value={attachmentUrls[assignment._id] || ""}
+                            onChange={(event) =>
+                              setAttachmentUrls((current) => ({
+                                ...current,
+                                [assignment._id]: event.target.value,
+                              }))
+                            }
+                            placeholder="https://example.com/my-work.pdf"
+                            disabled={!assignment.published || saving}
+                          />
+
+                          <small className="text-secondary">
+                            Attachment links are displayed only if your backend
+                            supports storing them.
+                          </small>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="btn btn-success"
+                          disabled={saving || !assignment.published}
+                        >
+                          {saving
+                            ? "Submitting..."
+                            : isSubmitted
+                              ? "Update Submission"
+                              : "Submit Assignment"}
+                        </button>
+
+                        {!assignment.published && (
+                          <p className="text-secondary small mt-2 mb-0">
+                            This assignment is not available for submission.
+                          </p>
+                        )}
+                      </form>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
+      {/* Instructor: review and grade submissions */}
       {isInstructor && selectedAssignment && (
         <div className="card border-0 shadow-sm mt-5">
           <div className="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center gap-2">
             <h5 className="mb-0">Submissions: {selectedAssignment.title}</h5>
 
             <button
+              type="button"
               className="btn btn-sm btn-light"
               onClick={() => {
                 setSelectedAssignment(null);
                 setSubmissions([]);
+                setGrading({});
               }}
             >
               Close
@@ -531,7 +749,10 @@ export default function AssignmentsPage() {
                 {submissions.map((submission) => (
                   <div key={submission._id} className="border rounded p-3">
                     <h6 className="fw-bold">
-                      {submission.student?.name || "Student"}
+                      {submission.student?.name ||
+                        submission.student?.fullName ||
+                        submission.student?.email ||
+                        "Student"}
                     </h6>
 
                     <p className="text-secondary small">
@@ -545,7 +766,7 @@ export default function AssignmentsPage() {
                       className="bg-light rounded p-3 mb-3"
                       style={{ whiteSpace: "pre-wrap" }}
                     >
-                      {submission.answer || "No written answer."}
+                      {submission.content || "No written answer."}
                     </div>
 
                     {submission.attachmentUrl && (
@@ -562,16 +783,23 @@ export default function AssignmentsPage() {
 
                     <div className="row g-3">
                       <div className="col-md-3">
-                        <label className="form-label">Score</label>
+                        <label
+                          className="form-label"
+                          htmlFor={`score-${submission._id}`}
+                        >
+                          Score
+                        </label>
 
                         <input
+                          id={`score-${submission._id}`}
                           type="number"
                           className="form-control"
                           min="0"
                           max={selectedAssignment.maxScore}
+                          step="any"
                           value={
                             grading[submission._id]?.score ??
-                            submission.score ??
+                            submission.grade ??
                             ""
                           }
                           onChange={(event) =>
@@ -585,9 +813,15 @@ export default function AssignmentsPage() {
                       </div>
 
                       <div className="col-md-9">
-                        <label className="form-label">Feedback</label>
+                        <label
+                          className="form-label"
+                          htmlFor={`feedback-${submission._id}`}
+                        >
+                          Feedback
+                        </label>
 
                         <textarea
+                          id={`feedback-${submission._id}`}
                           className="form-control"
                           rows={2}
                           value={
@@ -607,11 +841,12 @@ export default function AssignmentsPage() {
                     </div>
 
                     <button
+                      type="button"
                       className="btn btn-success btn-sm mt-3"
                       disabled={saving}
                       onClick={() => handleGradeSubmission(submission)}
                     >
-                      Save Grade
+                      {saving ? "Saving..." : "Save Grade"}
                     </button>
                   </div>
                 ))}

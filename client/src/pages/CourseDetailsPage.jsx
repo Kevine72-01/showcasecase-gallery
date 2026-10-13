@@ -11,6 +11,7 @@ export default function CourseDetailsPage() {
   const [enrollment, setEnrollment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [completingLessonId, setCompletingLessonId] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -28,31 +29,37 @@ export default function CourseDetailsPage() {
 
         if (!active) return;
 
-        setCourse(response.data.course);
+        const loadedCourse = response.data.course || response.data;
+        setCourse(loadedCourse);
 
         if (user?.role === "student") {
           try {
-            const enrollmentResponse = await api.get(
-              "/enrollments/me"
-            );
+            // Match the backend route: GET /api/enrollments/mine
+            const enrollmentResponse = await api.get("/enrollments/mine");
 
+            if (!active) return;
+
+            const data = enrollmentResponse.data;
+            const enrollments = Array.isArray(data)
+              ? data
+              : data.enrollments || [];
+
+            const currentEnrollment = enrollments.find((item) => {
+              const enrolledCourseId =
+                item.course?._id || item.course;
+
+              return String(enrolledCourseId) === String(id);
+            });
+
+            setEnrollment(currentEnrollment || null);
+          } catch (err) {
             if (active) {
-              const enrollments =
-                enrollmentResponse.data.enrollments || [];
-
-              const currentEnrollment = enrollments.find(
-                (item) => {
-                  const courseId =
-                    item.course?._id || item.course;
-
-                  return String(courseId) === String(id);
-                }
+              console.error(
+                "Failed to load enrollment:",
+                err.response?.data || err.message
               );
-
-              setEnrollment(currentEnrollment || null);
+              setEnrollment(null);
             }
-          } catch {
-            if (active) setEnrollment(null);
           }
         }
       } catch (err) {
@@ -104,34 +111,59 @@ export default function CourseDetailsPage() {
   };
 
   const handleCompleteLesson = async (lessonId) => {
+    if (!course?._id || !lessonId) {
+      setError("Course or lesson information is missing.");
+      return;
+    }
+
     setError("");
     setMessage("");
+    setCompletingLessonId(lessonId);
 
     try {
+      // Match the backend route in enrollmentRoutes.js.
       const response = await api.patch(
-        `/enrollments/${id}/lessons/${lessonId}`
+        `/enrollments/course/${course._id}/lessons/${lessonId}/complete`
       );
 
       if (response.data.enrollment) {
         setEnrollment(response.data.enrollment);
       } else {
-        setEnrollment((current) => ({
-          ...current,
-          completedLessons: [
-            ...new Set([
-              ...(current?.completedLessons || []),
+        // Fallback if the controller returns only a success message.
+        setEnrollment((current) => {
+          if (!current) return current;
+
+          const currentCompleted = current.completedLessons || [];
+          const alreadyCompleted = currentCompleted.some(
+            (item) =>
+              String(item?._id || item) === String(lessonId)
+          );
+
+          if (alreadyCompleted) return current;
+
+          return {
+            ...current,
+            completedLessons: [
+              ...currentCompleted,
               lessonId,
-            ]),
-          ],
-        }));
+            ],
+          };
+        });
       }
 
-      setMessage("Lesson progress updated.");
+      setMessage("Lesson marked as complete.");
     } catch (err) {
+      console.error(
+        "Failed to complete lesson:",
+        err.response?.data || err.message
+      );
+
       setError(
         err.response?.data?.message ||
           "Unable to update lesson progress."
       );
+    } finally {
+      setCompletingLessonId(null);
     }
   };
 
@@ -159,12 +191,15 @@ export default function CourseDetailsPage() {
 
   const lessons = course.lessons || [];
   const completedLessons = enrollment?.completedLessons || [];
-  const completedCount = lessons.filter((lesson) =>
+
+  const isLessonCompleted = (lessonId) =>
     completedLessons.some(
-      (completedId) =>
-        String(completedId?._id || completedId) ===
-        String(lesson._id)
-    )
+      (item) =>
+        String(item?._id || item) === String(lessonId)
+    );
+
+  const completedCount = lessons.filter((lesson) =>
+    isLessonCompleted(lesson._id)
   ).length;
 
   const progress =
@@ -279,11 +314,8 @@ export default function CourseDetailsPage() {
       ) : (
         <div className="d-flex flex-column gap-3">
           {lessons.map((lesson, index) => {
-            const completed = completedLessons.some(
-              (completedId) =>
-                String(completedId?._id || completedId) ===
-                String(lesson._id)
-            );
+            const completed = isLessonCompleted(lesson._id);
+            const completing = completingLessonId === lesson._id;
 
             return (
               <div
@@ -333,17 +365,22 @@ export default function CourseDetailsPage() {
 
                     {isStudent && enrollment && (
                       <button
+                        type="button"
                         className={`btn btn-sm ${
                           completed
                             ? "btn-outline-success"
                             : "btn-success"
                         }`}
-                        disabled={completed}
+                        disabled={completed || completing}
                         onClick={() =>
                           handleCompleteLesson(lesson._id)
                         }
                       >
-                        {completed ? "Completed" : "Mark Complete"}
+                        {completed
+                          ? "Completed"
+                          : completing
+                            ? "Saving..."
+                            : "Mark Complete"}
                       </button>
                     )}
                   </div>

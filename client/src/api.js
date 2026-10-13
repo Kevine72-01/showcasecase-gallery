@@ -1,24 +1,26 @@
+import axios from "axios";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 if (!API_URL) {
-  console.error(
-    "VITE_API_URL is missing. Check the .env file or Vercel settings."
-  );
+  console.error("VITE_API_URL is missing from the frontend .env file.");
 }
-async function request(path, options = {}) {
-  const res = await fetch(`${API_URL}/api/products${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) throw new Error("Request failed: ${res.status}");
-  return res.json();
-}
-export const getProducts = () => request("");
 
-export const createProduct = (data) =>
-  request("", { method: "POST", body: JSON.stringify(data) });
+const api = axios.create({
+  baseURL: `${API_URL || "http://localhost:5000"}/api`,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-export const updateProduct = (id, data) =>
-  request(`/${id}`, { method: "PUT", body: JSON.stringify(data) });
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("lms_token");
 
-export const deleteProduct = (id) => request(`/${id}`, { method: "DELETE" });
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+export default api;

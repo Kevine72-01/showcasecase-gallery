@@ -1,83 +1,86 @@
-import { useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+
+import { AuthProvider } from "./context/AuthProvider";
+import { useAuth } from "./context/useAuth";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
-import GalleryPage from "./pages/GalleryPage";
-import ManagePage from "./pages/ManagePage";
-import {
-  getProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-} from "./api";
 
-function App() {
-  const [products, setProducts] = useState([]);
-  const [view, setView] = useState("gallery");
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
+import CourseDetailsPage from "./pages/CourseDetailsPage";
+import ProfilePage from "./pages/ProfilePage";
+import CoursesPage from "./pages/CoursePage";
+import ManageCoursesPage from "./pages/ManageCoursePage";
+import AssignmentsPage from "./pages/AssignmentPage";
 
-  useEffect(() => {
-    getProducts()
-      .then((data) => setProducts(data))
-      .catch(() => setError("Could not load products. Refresh in 1 minute. "))
-      .finally(() => setLoading(false));
-  }, []);
+function AppLayout() {
+  const { user, loading } = useAuth();
 
-  const saveProduct = async (data) => {
-    if (editingProduct) {
-      const updated = await updateProduct(editingProduct._id, data);
-      setProducts((prev) =>
-        prev.map((p) => (p._id === updated._id ? updated : p))
-      );
-      setEditingProduct(null);
-    } else {
-      const created = await createProduct(data);
-      setProducts((prev) => [created, ...prev]);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="container py-5 text-center">Loading LearnSpace...</div>
+    );
+  }
 
-  const removeProduct = async (id) => {
-    if (!confirm("Delete this product?")) return;
-    try {
-      await deleteProduct(id);
-      setProducts((prev) => prev.filter((p) => p._id !== id));
-      if (editingProduct?._id === id) setEditingProduct(null);
-    } catch {
-      setError("Could not delete the product.");
-    }
-  };
-
-  const startEdit = (product) => {
-    setEditingProduct(product);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      <Navbar view={view} onChangeView={setView} />
+    <>
+      {user && <Navbar />}
 
-      {error && (
-        <div className="mx-auto mt-6 max-w-6xl px-6">
-          <p className="rounded-xl bg-red-50 p-4 text-red-600">{error}</p>
-        </div>
-      )}
-      {view === "gallery" ? (
-        <GalleryPage products={products} loading={loading} />
-      ) : (
-        <ManagePage
-          products={products}
-          editingProduct={editingProduct}
-          onSave={saveProduct}
-          onCancel={() => setEditingProduct(nulL)}
-          onEdit={startEdit}
-          onDelete={removeProduct}
+      <Routes>
+        <Route
+          path="/"
+          element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
         />
-      )}
 
-      <footer className="py-10 text-center text-sm text-slate-400">
-        Made by [Kevine N. Silvestre] . [INF232]
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* Routes available to authenticated users */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/courses" element={<CoursesPage />} />
+          <Route path="/courses/:id" element={<CourseDetailsPage />} />
+          <Route path="/assignments" element={<AssignmentsPage />} />
+        </Route>
+
+        {/* Student-only routes */}
+        <Route element={<ProtectedRoute roles={["student"]} />}>
+          <Route path="/my-courses" element={<CoursesPage enrolledOnly />} />
+        </Route>
+
+        {/* Instructor-only routes */}
+        <Route element={<ProtectedRoute roles={["instructor"]} />}>
+          <Route path="/manage-courses" element={<ManageCoursesPage />} />
+        </Route>
+
+        {/* Fallback route */}
+        <Route
+          path="*"
+          element={
+            <div className="container py-5 text-center">
+              <h1 className="h3">Page not found</h1>
+              <p>The page you requested does not exist.</p>
+            </div>
+          }
+        />
+      </Routes>
+
+      <footer className="page-footer">
+        LearnSpace LMS · MERN Stack Project
       </footer>
-    </div>
+    </>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppLayout />
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}

@@ -101,11 +101,11 @@ export default function AssignmentsPage() {
 
     try {
       await api.post("/assignments", {
-        ...assignmentForm,
         title: assignmentForm.title.trim(),
-        instructions: assignmentForm.instructions.trim(),
-        maxScore: Number(assignmentForm.maxScore),
-        dueDate: assignmentForm.dueDate || null,
+        description: assignmentForm.instructions.trim(),
+        courseId: assignmentForm.course,
+        dueDate: assignmentForm.dueDate,
+        totalPoints: Number(assignmentForm.maxScore),
       });
 
       setMessage("Assignment created successfully.");
@@ -144,8 +144,7 @@ export default function AssignmentsPage() {
 
     try {
       await api.post(`/assignments/${assignmentId}/submissions`, {
-        answer: answer.trim(),
-        attachmentUrl: attachmentUrl.trim(),
+        content: answer.trim(),
       });
 
       setMessage("Your assignment was submitted successfully.");
@@ -216,7 +215,7 @@ export default function AssignmentsPage() {
 
     try {
       await api.patch(`/assignments/submissions/${submission._id}/grade`, {
-        score: Number(score),
+        grade: Number(score),
         feedback,
       });
 
@@ -343,6 +342,7 @@ export default function AssignmentsPage() {
                     name="dueDate"
                     value={assignmentForm.dueDate}
                     onChange={handleAssignmentChange}
+                    required
                   />
                 </div>
 

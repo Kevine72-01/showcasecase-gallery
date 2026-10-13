@@ -39,12 +39,6 @@ export default function Navbar() {
               Courses
             </NavLink>
 
-            {user?.role === "student" && (
-              <NavLink className="nav-link" to="/my-courses">
-                My Learning
-              </NavLink>
-            )}
-
             {user?.role === "instructor" && (
               <NavLink className="nav-link" to="/manage-courses">
                 Manage Courses

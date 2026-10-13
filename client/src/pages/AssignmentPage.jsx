@@ -102,10 +102,11 @@ export default function AssignmentsPage() {
     try {
       await api.post("/assignments", {
         title: assignmentForm.title.trim(),
-        description: assignmentForm.instructions.trim(),
-        courseId: assignmentForm.course,
-        dueDate: assignmentForm.dueDate,
-        totalPoints: Number(assignmentForm.maxScore),
+        instructions: assignmentForm.instructions.trim(),
+        course: assignmentForm.course,
+        dueDate: assignmentForm.dueDate || null,
+        maxScore: Number(assignmentForm.maxScore) || 100,
+        published: Boolean(assignmentForm.published),
       });
 
       setMessage("Assignment created successfully.");

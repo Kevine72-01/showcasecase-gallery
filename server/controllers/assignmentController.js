@@ -2,7 +2,6 @@ import Assignment from "../models/Assignment.js";
 import Submission from "../models/Submission.js";
 import Enrollment from "../models/Enrollment.js";
 
-// GET /api/assignments
 export const getAssignments = async (req, res) => {
   try {
     const filter = {};
@@ -44,48 +43,80 @@ export const getAssignments = async (req, res) => {
   }
 };
 
-// POST /api/assignments
 export const createAssignment = async (req, res) => {
   try {
-    const { title, description, courseId, dueDate, totalPoints } = req.body;
+    const {
+      title,
+      instructions,
+      course,
+      dueDate,
+      maxScore,
+      published,
+    } = req.body;
 
-    if (!title || !description || !courseId || !dueDate) {
+    if (!title?.trim() || !instructions?.trim() || !course) {
       return res.status(400).json({
-        message: "Title, description, course, and due date are required.",
+        message: "Title, instructions, and course are required.",
       });
     }
 
-    const course = await (await import("../models/Course.js")).default.findById(
-      courseId
-    );
+    const Course = (await import("../models/Course.js")).default;
+    const selectedCourse = await Course.findById(course);
 
-    if (!course) {
-      return res.status(404).json({ message: "Course not found." });
+    if (!selectedCourse) {
+      return res.status(404).json({
+        message: "Course not found.",
+      });
     }
 
-    // Ensure the instructor owns the course.
-    if (course.instructor.toString() !== req.user._id.toString()) {
+    if (
+      !selectedCourse.instructor ||
+      selectedCourse.instructor.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         message: "You can only create assignments for your own courses.",
       });
     }
 
+    const parsedScore =
+      maxScore === "" || maxScore === undefined || maxScore === null
+        ? 100
+        : Number(maxScore);
+
+    if (
+      !Number.isFinite(parsedScore) ||
+      parsedScore < 1 ||
+      parsedScore > 1000
+    ) {
+      return res.status(400).json({
+        message: "Maximum score must be between 1 and 1000.",
+      });
+    }
+
     const assignment = await Assignment.create({
-      title,
-      description,
-      course: courseId,
+      title: title.trim(),
+      instructions: instructions.trim(),
+      course,
       instructor: req.user._id,
-      dueDate,
-      totalPoints: totalPoints || 100,
+      dueDate: dueDate || null,
+      maxScore: parsedScore,
+      published: Boolean(published),
     });
 
-    res.status(201).json(assignment);
+    return res.status(201).json({
+      message: "Assignment created successfully.",
+      assignment,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Create assignment error:", error);
+
+    return res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
-// POST /api/assignments/:assignmentId/submissions
+
 export const submitAssignment = async (req, res) => {
   try {
     const { content } = req.body;

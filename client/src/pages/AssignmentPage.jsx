@@ -34,24 +34,32 @@ export default function AssignmentsPage() {
   const isInstructor = user?.role === "instructor";
 
   const fetchAssignments = async () => {
+    setLoading(true);
+
     try {
-      const response = await api.get("/assignments");
+      const response = await api.get("/assignments", {
+        timeout: 15000,
+      });
+
+      const data = response.data;
 
       setAssignments(
-        Array.isArray(response.data)
-          ? response.data
-          : response.data.assignments || [],
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.assignments)
+            ? data.assignments
+            : [],
       );
     } catch (error) {
       console.error(
-        "Failed to fetch assignments:",
+        "Assignment fetch failed:",
         error.response?.data || error.message,
       );
-
-      setAssignments([]);
+    } finally {
+      setLoading(false);
     }
   };
-
+  
   const fetchCourses = async () => {
     try {
       const response = await api.get("/courses", {

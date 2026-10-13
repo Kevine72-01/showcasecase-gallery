@@ -4,29 +4,20 @@ import Enrollment from "../models/Enrollment.js";
 
 export const getAssignments = async (req, res) => {
   try {
-    const filter = {};
-
-    if (req.user.role === "instructor") {
-      filter.instructor = req.user._id;
-    }
-
-    if (req.query.courseId) {
-      filter.course = req.query.courseId;
-    }
-
-    const assignments = await Assignment.find(filter)
+    const assignments = await Assignment.find({
+      ...(req.user.role === "instructor"
+        ? { instructor: req.user._id }
+        : { published: true }),
+    })
       .populate("course", "title")
       .populate("instructor", "name email")
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      assignments,
-    });
+    return res.status(200).json({ assignments });
   } catch (error) {
     console.error("Get assignments error:", error);
-
     return res.status(500).json({
-      message: error.message,
+      message: "Failed to fetch assignments.",
     });
   }
 };

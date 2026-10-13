@@ -67,7 +67,6 @@ export const getAssignments = async (req, res) => {
   }
 };
 
-// POST /api/assignments
 export const createAssignment = async (req, res) => {
   try {
     if (!isInstructor(req)) {
@@ -142,7 +141,6 @@ export const createAssignment = async (req, res) => {
   }
 };
 
-// POST /api/assignments/:assignmentId/submissions
 export const submitAssignment = async (req, res) => {
   try {
     if (!isStudent(req)) {

@@ -5,24 +5,20 @@ import { useAuth } from "../context/useAuth";
 export default function AssignmentsPage() {
   const { user } = useAuth();
 
-  // Main data
   const [assignments, setAssignments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [mySubmissions, setMySubmissions] = useState({});
   const [submissions, setSubmissions] = useState([]);
 
-  // Page state
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Instructor state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
 
-  // Assignment form
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
     instructions: "",
@@ -32,14 +28,12 @@ export default function AssignmentsPage() {
     published: false,
   });
 
-  // Keep answers separate for each assignment.
   const [answers, setAnswers] = useState({});
   const [attachmentUrls, setAttachmentUrls] = useState({});
   const [grading, setGrading] = useState({});
 
   const isInstructor = user?.role === "instructor";
 
-  // Fetch assignments and existing student submissions.
   const fetchAssignments = useCallback(async () => {
     try {
       const response = await api.get("/assignments");
@@ -74,7 +68,6 @@ export default function AssignmentsPage() {
     }
   }, [isInstructor]);
 
-  // Fetch courses for the instructor's assignment form.
   const fetchCourses = useCallback(async () => {
     if (!isInstructor) return;
 
@@ -99,7 +92,6 @@ export default function AssignmentsPage() {
     loadData();
   }, [fetchAssignments, fetchCourses]);
 
-  // Handle assignment creation form fields.
   const handleAssignmentChange = (event) => {
     const { name, value, type, checked } = event.target;
 
@@ -109,7 +101,6 @@ export default function AssignmentsPage() {
     }));
   };
 
-  // Create a new assignment.
   const handleCreateAssignment = async (event) => {
     event.preventDefault();
     setError("");
@@ -165,7 +156,6 @@ export default function AssignmentsPage() {
     }
   };
 
-  // Submit an answer for a specific assignment.
   const handleSubmitAssignment = async (event, assignment) => {
     event.preventDefault();
     setError("");
@@ -193,7 +183,6 @@ export default function AssignmentsPage() {
         },
       );
 
-      // Update the visible indicator immediately.
       const savedSubmission = response.data.submission;
 
       if (savedSubmission) {
@@ -202,7 +191,6 @@ export default function AssignmentsPage() {
           [assignment._id]: savedSubmission,
         }));
       } else {
-        // Still show submitted status if the API only returns a message.
         setMySubmissions((current) => ({
           ...current,
           [assignment._id]: {
@@ -221,7 +209,6 @@ export default function AssignmentsPage() {
 
       setMessage(response.data.message || "Assignment submitted successfully.");
 
-      // Reload to retrieve the persisted submission from the backend.
       await fetchAssignments();
     } catch (err) {
       console.error("Submit assignment error:", err);
@@ -233,7 +220,6 @@ export default function AssignmentsPage() {
     }
   };
 
-  // Load all submissions for an instructor-selected assignment.
   const handleViewSubmissions = async (assignment) => {
     setError("");
     setMessage("");
@@ -255,7 +241,6 @@ export default function AssignmentsPage() {
     }
   };
 
-  // Handle instructor grade and feedback inputs.
   const handleGradeChange = (submissionId, field, value) => {
     setGrading((current) => ({
       ...current,
@@ -266,7 +251,6 @@ export default function AssignmentsPage() {
     }));
   };
 
-  // Save a grade and instructor feedback.
   const handleGradeSubmission = async (submission) => {
     if (!selectedAssignment) return;
 
@@ -302,7 +286,6 @@ export default function AssignmentsPage() {
 
       setMessage("Submission graded successfully.");
 
-      // Refresh the list after grading.
       await handleViewSubmissions(selectedAssignment);
     } catch (err) {
       setError(
@@ -313,7 +296,6 @@ export default function AssignmentsPage() {
     }
   };
 
-  // Search assignments by title or course.
   const filteredAssignments = assignments.filter((assignment) => {
     const query = search.trim().toLowerCase();
 

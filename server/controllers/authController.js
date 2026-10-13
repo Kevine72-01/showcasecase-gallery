@@ -62,8 +62,6 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Public registration cannot create instructor accounts.
-    // Instructor accounts should be provisioned by a trusted administrator.
     if (role && role !== "student") {
       return res.status(403).json({
         message: "Instructor accounts cannot be created through public registration.",

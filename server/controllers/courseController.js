@@ -123,7 +123,6 @@ const validateCourseInput = (data, res) => {
   return true;
 };
 
-// GET /api/courses
 export const getCourses = async (req, res, next) => {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
@@ -135,7 +134,6 @@ export const getCourses = async (req, res, next) => {
 
     const filter = {};
 
-    // Students and public visitors only see published courses.
     if (!req.user || req.user.role === "student") {
       filter.published = true;
     } else if (req.query.mine === "true") {
@@ -175,7 +173,6 @@ export const getCourses = async (req, res, next) => {
   }
 };
 
-// GET /api/courses/:id
 export const getCourseById = async (req, res, next) => {
   try {
     if (!validId(req.params.id)) {
@@ -203,7 +200,6 @@ export const getCourseById = async (req, res, next) => {
   }
 };
 
-// POST /api/courses
 export const createCourse = async (req, res, next) => {
   try {
     const data = cleanCourseInput(req.body);
@@ -243,7 +239,6 @@ export const createCourse = async (req, res, next) => {
   }
 };
 
-// PUT /api/courses/:id
 export const updateCourse = async (req, res, next) => {
   try {
     if (!validId(req.params.id)) {
@@ -289,7 +284,6 @@ export const updateCourse = async (req, res, next) => {
   }
 };
 
-// DELETE /api/courses/:id
 export const deleteCourse = async (req, res, next) => {
   try {
     if (!validId(req.params.id)) {

@@ -34,7 +34,6 @@ export default function CourseDetailsPage() {
 
         if (user?.role === "student") {
           try {
-            // Match the backend route: GET /api/enrollments/mine
             const enrollmentResponse = await api.get("/enrollments/mine");
 
             if (!active) return;
@@ -121,7 +120,6 @@ export default function CourseDetailsPage() {
     setCompletingLessonId(lessonId);
 
     try {
-      // Match the backend route in enrollmentRoutes.js.
       const response = await api.patch(
         `/enrollments/course/${course._id}/lessons/${lessonId}/complete`
       );
@@ -129,7 +127,6 @@ export default function CourseDetailsPage() {
       if (response.data.enrollment) {
         setEnrollment(response.data.enrollment);
       } else {
-        // Fallback if the controller returns only a success message.
         setEnrollment((current) => {
           if (!current) return current;
 
